@@ -23,8 +23,10 @@ class Vibes:
 		Column("source_url", String, nullable=False),
 		Column("last_updated", Date(), nullable=False)
 	)
-	identifier: int
+	id: int
 	title: str
 	contents: str
 	upvotes: int
+	source_url: str
+	last_updated: Date
 	
