@@ -8,9 +8,8 @@ from dotenv import load_dotenv
 import praw
 from sqlalchemy import text
 from SQLiteConnection import engine
-from Tables import CommentVibes, Vibes
+from wtfrit_storage_schema import CommentVibes, Vibes, Database
 from praw.models import Submission
-from sqlalchemy.orm import sessionmaker
 
 #set up the parser
 parser = argparse.ArgumentParser()
@@ -28,12 +27,11 @@ reddit = praw.Reddit(
     user_agent = "WTFRIT",
 )
 
-DBSession = sessionmaker(bind=engine)
-session = DBSession()
+db = Database()
+db.initialize()
 
 def scrapeReddit():
-    session.execute(text('DELETE FROM vibes;'))
-    session.execute(text('DELETE FROM comment_vibes;'))          
+    db.reset_values()          
     six_months_ago = int(time.time()) - (6 * 30 * 24 * 60 * 60)
     subreddit = reddit.subreddit('rit')
     for submission in subreddit.hot(params={'before': six_months_ago, 't': 'month'}):
@@ -47,7 +45,7 @@ def scrapeReddit():
             else:
                 total_votes=0
             post = Vibes(title = submission.title, contents=submission.selftext, upvotes=submission.score, total_votes=total_votes, sentiment=int(sentiment_score*100), source_url=submission.url, last_updated= datetime.datetime.fromtimestamp(int(submission.created_utc)))
-            session.add(post)
+            db.add(post)
             if submission.comments != []:
                 #for each comment
                 for post in submission.comments:
@@ -56,11 +54,11 @@ def scrapeReddit():
                         comment_sentiment = requests.post('http://127.0.0.1:4000/sentiment', json=comment_data)
                         comment_sentiment_score = json.loads(comment_sentiment.text)['sentiment']
                         comment_post = CommentVibes(parent_id = submission.id, contents=post.body, sentiment=int(comment_sentiment_score*100))
-                        session.add(comment_post)
+                        db.add(comment_post)
                         total_sentiment = total_sentiment + comment_sentiment_score
                 submission_sentiment = total_sentiment / (submission.num_comments + 1)
                 submission.sentiment = submission_sentiment
-            session.commit()
+            db.commit()
 
 
 
@@ -70,8 +68,8 @@ def scrapeTest():
     sentiment = requests.post('http://127.0.0.1:4000/sentiment', json=data)
     sentiment_score = json.loads(sentiment.text)['sentiment']
     post = Vibes(title = submission.title, contents=submission.selftext, upvotes=submission.score, total_votes=int(submission.score/submission.upvote_ratio), sentiment=int(sentiment_score*100), source_url= submission.url, last_updated= datetime.datetime.fromtimestamp(int(submission.created_utc)))
-    session.add(post)
-    session.commit()
+    db.add(post)
+    db.commit()
 
 if args.link is None:
     scrapeReddit()

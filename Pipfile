@@ -8,6 +8,7 @@ sqlalchemy = "*"
 requests = "*"
 python-dotenv = "*"
 praw = "*"
+wtfrit_storage_schema = {path = "./../storage-schema"}
 
 [dev-packages]
 
